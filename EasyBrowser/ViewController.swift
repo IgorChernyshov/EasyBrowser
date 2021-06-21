@@ -12,6 +12,7 @@ final class ViewController: UIViewController {
 	// MARK: - Properties
 	private var webView: WKWebView!
 	private var progressView: UIProgressView!
+	private var websites = ["ya.ru", "apple.com", "hackingwithswift.com"]
 
 	// MARK: - Lifecycle
 	override func loadView() {
@@ -33,7 +34,7 @@ final class ViewController: UIViewController {
 		toolbarItems = [progressButton, spacer, refresh]
 		navigationController?.isToolbarHidden = false
 
-		let url = URL(string: "https://www.ya.ru")!
+		let url = URL(string: "https://\(websites.first!)")!
 		webView.load(URLRequest(url: url))
 		webView.allowsBackForwardNavigationGestures = true
 		webView.addObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress), options: .new, context: nil)
@@ -47,8 +48,9 @@ final class ViewController: UIViewController {
 	// MARK: - Selectors
 	@objc private func didTapOpenButton() {
 		let alertController = UIAlertController(title: "Open page…", message: nil, preferredStyle: .actionSheet)
-		alertController.addAction(UIAlertAction(title: "apple.com", style: .default, handler: openPage))
-		alertController.addAction(UIAlertAction(title: "hackingwithswift.com", style: .default, handler: openPage))
+		for website in websites {
+			alertController.addAction(UIAlertAction(title: website, style: .default, handler: openPage))
+		}
 		alertController.addAction(UIAlertAction(title: "Cancel", style: .cancel))
 		alertController.popoverPresentationController?.barButtonItem = self.navigationItem.rightBarButtonItem
 		present(alertController, animated: true)
@@ -72,5 +74,20 @@ extension ViewController: WKNavigationDelegate {
 
 	func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
 		title = webView.title
+	}
+
+	func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
+		let url = navigationAction.request.url
+
+		if let host = url?.host {
+			for website in websites {
+				if host.contains(website) {
+					decisionHandler(.allow)
+					return
+				}
+			}
+		}
+
+		decisionHandler(.cancel)
 	}
 }
