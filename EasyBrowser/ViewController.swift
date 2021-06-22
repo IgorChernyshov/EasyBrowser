@@ -12,9 +12,19 @@ final class ViewController: UIViewController {
 	// MARK: - Properties
 	private var webView: WKWebView!
 	private var progressView: UIProgressView!
-	private var websites = ["ya.ru", "apple.com", "hackingwithswift.com"]
+	private var url: URL
 
 	// MARK: - Lifecycle
+	init(website: String) {
+		self.url = URL(string: "https://\(website)")!
+		super.init(nibName: nil, bundle: nil)
+	}
+
+	@available(*, unavailable)
+	required init?(coder: NSCoder) {
+		fatalError("This initializer is not implemented")
+	}
+
 	override func loadView() {
 		webView = WKWebView()
 		webView.navigationDelegate = self
@@ -24,17 +34,19 @@ final class ViewController: UIViewController {
 	override func viewDidLoad() {
 		super.viewDidLoad()
 
-		navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Open", style: .plain, target: self, action: #selector(didTapOpenButton))
+		let refreshBarButtonItem = UIBarButtonItem(barButtonSystemItem: .refresh, target: webView, action: #selector(webView.reload))
+		navigationItem.rightBarButtonItem = refreshBarButtonItem
 
+		let backBarButtonItem = UIBarButtonItem(title: "<", style: .plain, target: webView, action: #selector(webView.goBack))
+		let forwardBarButtonItem = UIBarButtonItem(title: ">", style: .plain, target: webView, action: #selector(webView.goForward))
+		let spacerBarButtonItem = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
 		progressView = UIProgressView(progressViewStyle: .default)
 		progressView.sizeToFit()
-		let progressButton = UIBarButtonItem(customView: progressView)
-		let spacer = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
-		let refresh = UIBarButtonItem(barButtonSystemItem: .refresh, target: webView, action: #selector(webView.reload))
-		toolbarItems = [progressButton, spacer, refresh]
+		let progressBarButtonItem = UIBarButtonItem(customView: progressView)
+
+		toolbarItems = [backBarButtonItem, forwardBarButtonItem, spacerBarButtonItem, progressBarButtonItem]
 		navigationController?.isToolbarHidden = false
 
-		let url = URL(string: "https://\(websites.first!)")!
 		webView.load(URLRequest(url: url))
 		webView.allowsBackForwardNavigationGestures = true
 		webView.addObserver(self, forKeyPath: #keyPath(WKWebView.estimatedProgress), options: .new, context: nil)
@@ -46,16 +58,6 @@ final class ViewController: UIViewController {
 	}
 
 	// MARK: - Selectors
-	@objc private func didTapOpenButton() {
-		let alertController = UIAlertController(title: "Open page…", message: nil, preferredStyle: .actionSheet)
-		for website in websites {
-			alertController.addAction(UIAlertAction(title: website, style: .default, handler: openPage))
-		}
-		alertController.addAction(UIAlertAction(title: "Cancel", style: .cancel))
-		alertController.popoverPresentationController?.barButtonItem = self.navigationItem.rightBarButtonItem
-		present(alertController, animated: true)
-	}
-
 	private func openPage(action: UIAlertAction) {
 		let url = URL(string: "https://" + action.title!)!
 		webView.load(URLRequest(url: url))
@@ -66,6 +68,13 @@ final class ViewController: UIViewController {
 		if keyPath == "estimatedProgress" {
 			progressView.progress = Float(webView.estimatedProgress)
 		}
+	}
+
+	// MARK: - Alerts
+	private func showURLNotAllowedAlert() {
+		let alertController = UIAlertController(title: "Parent control", message: "This URL is not allowed", preferredStyle: .alert)
+		alertController.addAction(UIAlertAction(title: "Mkay", style: .default))
+		present(alertController, animated: true)
 	}
 }
 
@@ -80,14 +89,13 @@ extension ViewController: WKNavigationDelegate {
 		let url = navigationAction.request.url
 
 		if let host = url?.host {
-			for website in websites {
-				if host.contains(website) {
-					decisionHandler(.allow)
-					return
-				}
+			if host.contains(self.url.host ?? "") {
+				decisionHandler(.allow)
+				return
 			}
 		}
 
+		showURLNotAllowedAlert()
 		decisionHandler(.cancel)
 	}
 }
